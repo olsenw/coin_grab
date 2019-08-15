@@ -15,6 +15,7 @@ The game ends when your character dies.
 ## Made Using
 * [Rust Programming Language](https://www.rust-lang.org/)
 * [ggez - Good Games Easily](https://github.com/ggez/ggez)
+* [rand - Random Number Crate](https://github.com/rust-random/rand)
 
 ## License
 Makes use of the MIT License.
