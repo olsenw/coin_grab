@@ -7,6 +7,10 @@ use ggez::input::{keyboard::{KeyMods, self}, mouse};
 
 use rand::prelude::*;
 
+const ROTATION_SPEED: f32 = 4f32; // rotate 10 degrees per second
+const MIN_DISTANCE: f32 = 8f32; // minimum following distance
+const MOVE_SPEED: f32 = 32f32; // how quickly objects can move
+
 /// State information for the coin grab game
 struct State {
     // shapes that will be drawn
@@ -26,9 +30,9 @@ impl State {
         let rectangle_mesh = Mesh::new_rectangle(ctx, DrawMode::stroke(2f32), Rect::new(0f32, 0f32, 64f32, 64f32), WHITE)?;
 
         let player = vec![
-            DrawParam::default().dest([64f32, 64f32]).offset([32f32, 32f32]).rotation(rng.gen_range(0f32, 360f32)),
-            DrawParam::default().dest([64f32, 64f32]).offset([32f32, 32f32]).rotation(rng.gen_range(0f32, 360f32)),
-            DrawParam::default().dest([64f32, 64f32]).offset([32f32, 32f32]).rotation(rng.gen_range(0f32, 360f32)),
+            DrawParam::default().dest([64f32, 64f32]).offset([32f32, 32f32]).rotation(rng.gen_range(0f32, 360f32)).scale([0.9f32, 0.9f32]),
+            DrawParam::default().dest([64f32, 64f32]).offset([32f32, 32f32]).rotation(rng.gen_range(0f32, 360f32)).scale([0.81f32, 0.81f32]),
+            DrawParam::default().dest([64f32, 64f32]).offset([32f32, 32f32]).rotation(rng.gen_range(0f32, 360f32)).scale([0.729f32, 0.729f32]),
         ];
 
         Ok(State {
@@ -49,7 +53,31 @@ impl EventHandler for State {
 
     fn update(&mut self, ctx: &mut Context) -> GameResult {
         if !self.player.is_empty() {
-            // update game
+            let delta = timer::delta(ctx);
+            let delta_f32 = timer::duration_to_f64(delta) as f32;
+
+            let mut goto = self.mouse;
+            for player in self.player.iter_mut() {
+                // only move if minimum distance away
+                if  (goto.x - player.dest.x).abs() > MIN_DISTANCE || (goto.y - player.dest.y).abs() > MIN_DISTANCE {
+                    // move horizontally
+                    if goto.x > player.dest.x {
+                        player.dest.x += delta_f32 * MOVE_SPEED;
+                    } else {
+                        player.dest.x -= delta_f32 * MOVE_SPEED;
+                    }
+                    // move virtically
+                    if goto.y > player.dest.y {
+                        player.dest.y += delta_f32 * MOVE_SPEED;
+                    } else {
+                        player.dest.y -= delta_f32 * MOVE_SPEED;
+                    }
+                }
+                // rotate
+                player.rotation += delta_f32 * ROTATION_SPEED;
+                // update following point
+                goto = player.dest;
+            }
         } else {
             // game over
             self.message = Text::new(format!("Game Over\nCollected {} Coins", self.collected));
@@ -65,6 +93,11 @@ impl EventHandler for State {
         let width_height = (self.message.width(ctx) as f32 / 2f32, self.message.height(ctx) as f32 / 2f32);
         graphics::queue_text(ctx, &self.message, [400f32 - width_height.0, 300f32 - width_height.1], Some(WHITE));
         graphics::draw_queued_text(ctx, DrawParam::default(), None, FilterMode::Linear)?;
+
+        // draw player
+        for player in self.player.iter().rev() {
+            graphics::draw(ctx, &self.rectangle_mesh, *player)?;
+        }
 
         graphics::present(ctx)?;
         timer::yield_now();
