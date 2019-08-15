@@ -11,14 +11,22 @@ const ROTATION_SPEED: f32 = 4f32; // rotate 10 degrees per second
 const MIN_DISTANCE: f32 = 8f32; // minimum following distance
 const MOVE_SPEED: f32 = 32f32; // how quickly objects can move
 
+enum CoinType {
+    Coin, // up the number of coins that spawn
+    Damage, // hurt player picking up coin
+    // others
+}
+
 /// State information for the coin grab game
 struct State {
     // shapes that will be drawn
     rectangle_mesh: Mesh,
+    circle_mesh: Mesh,
 
     // helpful state information
-    player: Vec<DrawParam>,
     mouse: Point2<f32>,
+    player: Vec<DrawParam>,
+    coins: Vec<(CoinType, DrawParam)>,
     message: Text,
     collected: usize,
 }
@@ -28,6 +36,7 @@ impl State {
         let mut rng = rand::thread_rng();
 
         let rectangle_mesh = Mesh::new_rectangle(ctx, DrawMode::stroke(2f32), Rect::new(0f32, 0f32, 64f32, 64f32), WHITE)?;
+        let circle_mesh = Mesh::new_circle(ctx, DrawMode::fill(), [32f32, 32f32], 32f32, 0.25f32, WHITE)?;
 
         let player = vec![
             DrawParam::default().dest([64f32, 64f32]).offset([32f32, 32f32]).rotation(rng.gen_range(0f32, 360f32)).scale([0.9f32, 0.9f32]),
@@ -37,7 +46,9 @@ impl State {
 
         Ok(State {
             rectangle_mesh,
+            circle_mesh,
             player,
+            coins: vec![(CoinType::Coin, DrawParam::default().dest([736f32, 536f32]))],
             mouse: mouse::position(ctx),
             message: Text::new("Hello World"),
             collected: 0usize,
@@ -56,6 +67,9 @@ impl EventHandler for State {
             let delta = timer::delta(ctx);
             let delta_f32 = timer::duration_to_f64(delta) as f32;
 
+            // test for collisions
+
+            // update player location
             let mut goto = self.mouse;
             for player in self.player.iter_mut() {
                 // only move if minimum distance away
@@ -97,6 +111,12 @@ impl EventHandler for State {
         // draw player
         for player in self.player.iter().rev() {
             graphics::draw(ctx, &self.rectangle_mesh, *player)?;
+            graphics::draw(ctx, &self.circle_mesh, *player)?;
+        }
+
+        // draw coins
+        for coin in self.coins.iter() {
+            graphics::draw(ctx, &self.circle_mesh, coin.1)?;
         }
 
         graphics::present(ctx)?;
