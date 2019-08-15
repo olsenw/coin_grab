@@ -8,8 +8,8 @@ use ggez::input::{keyboard::{KeyMods, self}, mouse};
 use rand::prelude::*;
 
 const ROTATION_SPEED: f32 = 4f32; // rotate 10 degrees per second
-const MIN_DISTANCE: f32 = 8f32; // minimum following distance
-const MOVE_SPEED: f32 = 32f32; // how quickly objects can move
+const MIN_DISTANCE: f32 = 16f32; // minimum following distance
+const MOVE_SPEED: f32 = 64f32; // how quickly objects can move
 
 #[derive(Clone, Copy)]
 enum CoinType {
