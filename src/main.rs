@@ -11,9 +11,10 @@ const ROTATION_SPEED: f32 = 4f32; // rotate 10 degrees per second
 const MIN_DISTANCE: f32 = 8f32; // minimum following distance
 const MOVE_SPEED: f32 = 32f32; // how quickly objects can move
 
+#[derive(Clone, Copy)]
 enum CoinType {
-    Coin, // up the number of coins that spawn
-    Damage, // hurt player picking up coin
+    Coin, // (YELLOW) up the number of coins that spawn
+    Damage, // (RED) hurt player picking up coin
     // others
 }
 
@@ -27,8 +28,9 @@ struct State {
     mouse: Point2<f32>,
     player: Vec<DrawParam>,
     coins: Vec<(CoinType, DrawParam)>,
-    message: Text,
+    spawn_rate: usize,
     collected: usize,
+    message: Text,
 }
 
 impl State {
@@ -39,20 +41,42 @@ impl State {
         let circle_mesh = Mesh::new_circle(ctx, DrawMode::fill(), [32f32, 32f32], 32f32, 0.25f32, WHITE)?;
 
         let player = vec![
+            DrawParam::default().dest([64f32, 64f32]).offset([32f32, 32f32]).rotation(rng.gen_range(0f32, 360f32)),
             DrawParam::default().dest([64f32, 64f32]).offset([32f32, 32f32]).rotation(rng.gen_range(0f32, 360f32)).scale([0.9f32, 0.9f32]),
             DrawParam::default().dest([64f32, 64f32]).offset([32f32, 32f32]).rotation(rng.gen_range(0f32, 360f32)).scale([0.81f32, 0.81f32]),
-            DrawParam::default().dest([64f32, 64f32]).offset([32f32, 32f32]).rotation(rng.gen_range(0f32, 360f32)).scale([0.729f32, 0.729f32]),
         ];
 
         Ok(State {
             rectangle_mesh,
             circle_mesh,
-            player,
-            coins: vec![(CoinType::Coin, DrawParam::default().dest([736f32, 536f32]))],
             mouse: mouse::position(ctx),
-            message: Text::new("Hello World"),
+            player,
+            coins: vec![(CoinType::Coin, DrawParam::default().dest([300f32, 64f32]).color([1f32, 1f32, 0f32, 1f32].into()))],
+            spawn_rate: 1usize,
             collected: 0usize,
+            message: Text::new("Try collecting that coin over there"),
         })
+    }
+
+    fn collect_coin(&mut self, coin_type: CoinType) {
+        self.collected += 1usize;
+
+        match coin_type {
+            CoinType::Coin => { self.spawn_rate += 1usize; self.message = Text::new("Increased number of coins that spawn!"); },
+            CoinType::Damage => { self.player.pop(); self.message = Text::new("Ouch that coin hurt!"); },
+        }
+
+        self.coins.clear();
+        let mut rng = rand::thread_rng();
+        for _ in 0..self.spawn_rate {
+            let x = rng.gen_range(64f32, 736f32);
+            let y = rng.gen_range(64f32, 536f32);
+            match rng.gen_range(0usize, 2usize) {
+                0usize => self.coins.push((CoinType::Coin, DrawParam::default().dest([x, y]).color([1f32, 1f32, 0f32, 1f32].into()))),
+                1usize => self.coins.push((CoinType::Damage, DrawParam::default().dest([x, y]).color([1f32, 0f32, 0f32, 1f32].into()))),
+                _ => println!("Oops did not spawn coin..."),
+            }
+        }
     }
 }
 
@@ -67,10 +91,23 @@ impl EventHandler for State {
             let delta = timer::delta(ctx);
             let delta_f32 = timer::duration_to_f64(delta) as f32;
 
-            // test for collisions
+            // test for collisions (should use iterator)
+            let mut val = (false, CoinType::Coin);
+            for coin in self.coins.iter() {
+                if (coin.1.dest.x - self.player[0].dest.x).abs() < 32f32 && (coin.1.dest.y - self.player[0].dest.y).abs() < 32f32 {
+                    println!("Collected Coin at position {:?}", coin.1.dest);
+                    val = (true, coin.0);
+                    break;
+                }
+            }
+            if val.0 {
+                self.collect_coin(val.1);
+            }
 
             // update player location
             let mut goto = self.mouse;
+            goto.x -= 32f32;
+            goto.y -= 32f32;
             for player in self.player.iter_mut() {
                 // only move if minimum distance away
                 if  (goto.x - player.dest.x).abs() > MIN_DISTANCE || (goto.y - player.dest.y).abs() > MIN_DISTANCE {
@@ -108,15 +145,17 @@ impl EventHandler for State {
         graphics::queue_text(ctx, &self.message, [400f32 - width_height.0, 300f32 - width_height.1], Some(WHITE));
         graphics::draw_queued_text(ctx, DrawParam::default(), None, FilterMode::Linear)?;
 
-        // draw player
-        for player in self.player.iter().rev() {
-            graphics::draw(ctx, &self.rectangle_mesh, *player)?;
-            graphics::draw(ctx, &self.circle_mesh, *player)?;
-        }
+        if !self.player.is_empty() {
+            // draw player
+            for player in self.player.iter().rev() {
+                graphics::draw(ctx, &self.rectangle_mesh, *player)?;
+                graphics::draw(ctx, &self.circle_mesh, *player)?;
+            }
 
-        // draw coins
-        for coin in self.coins.iter() {
-            graphics::draw(ctx, &self.circle_mesh, coin.1)?;
+            // draw coins
+            for coin in self.coins.iter() {
+                graphics::draw(ctx, &self.circle_mesh, coin.1)?;
+            }
         }
 
         graphics::present(ctx)?;
